@@ -1,4 +1,3 @@
-import GoogleTextInput from "@/components/GoogleTextInput";
 import Map from "@/components/Map";
 import * as Location from "expo-location";
 import RideCard from "@/components/RideCard";
@@ -16,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import HereTextInput from "@/components/HereTextInput";
 
 const recentRides = [
   {
@@ -159,7 +159,15 @@ export default function Page() {
     })();
   }, []);
 
-  const handleDestinationPress = () => {};
+  const handleDestinationPress = (location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  }) => {
+    setDestinationLocation(location);
+
+    router.push("/(root)/find-ride");
+  };
 
   const loading = false;
 
@@ -207,7 +215,7 @@ export default function Page() {
               </TouchableOpacity>
             </View>
 
-            <GoogleTextInput
+            <HereTextInput
               icon={icons.search}
               containerStyle="bg-white shadow-md shadow-neutral-300"
               handlePress={handleDestinationPress}
