@@ -9,12 +9,9 @@ import { useDriverStore, useLocationStore } from "@/store";
 import { Driver, MarkerData } from "@/types/type";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
-import MapView, {
-  LatLng,
-  Marker,
-  PROVIDER_DEFAULT,
-  Polyline,
-} from "react-native-maps";
+import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import MapViewDirections from "react-native-maps-directions";
+import { Polyline } from "react-native-maps";
 import axios from "axios";
 
 const Map = () => {
@@ -37,7 +34,6 @@ const Map = () => {
   const { selectedDriver, setDrivers } = useDriverStore();
 
   const [markers, setMarkers] = useState<MarkerData[]>([]);
-  const [routeCoordinates, setRouteCoordinates] = useState<LatLng[]>([]); // Store route coordinates
 
   useEffect(() => {
     if (Array.isArray(drivers)) {
@@ -55,71 +51,6 @@ const Map = () => {
     }
   }, [drivers, userLatitude, userLongitude]);
 
-  // Function to fetch directions from HERE Routing API
-  const fetchHereRoute = async (
-    origin: {
-      latitude: number | null;
-      longitude: number | null;
-    },
-    destination: {
-      latitude: number | null;
-      longitude: number | null;
-    }
-  ) => {
-    const apiKey = process.env.EXPO_PUBLIC_HERE_MAPS_API_KEY; // HERE Maps API Key
-    const url = `https://router.hereapi.com/v8/routes?transportMode=car&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&return=polyline&apikey=${apiKey}`;
-
-    try {
-      const response = await axios.get(url);
-      const { routes } = response.data;
-      if (routes.length > 0) {
-        const shape = routes[0].sections[0].polyline;
-        return shape;
-      }
-    } catch (error) {
-      console.error("Error fetching route from HERE Maps:", error);
-    }
-    return null;
-  };
-
-  // // Function to decode HERE Maps polyline
-  const decodePolyline = (encoded: any) => {
-    let points = [];
-    let index = 0,
-      len = encoded.length;
-    let lat = 0,
-      lng = 0;
-
-    while (index < len) {
-      let b,
-        shift = 0,
-        result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      let dlat = result & 1 ? ~(result >> 1) : result >> 1;
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      let dlng = result & 1 ? ~(result >> 1) : result >> 1;
-      lng += dlng;
-
-      points.push({
-        latitude: lat / 1e5,
-        longitude: lng / 1e5,
-      });
-    }
-    return points;
-  };
-
   useEffect(() => {
     if (markers.length > 0 && destinationLatitude && destinationLongitude) {
       calculateDriverTimes({
@@ -133,27 +64,6 @@ const Map = () => {
       });
     }
   }, [markers, destinationLatitude, destinationLongitude]);
-
-  useEffect(() => {
-    // Fetch directions from HERE Maps if destination is provided
-    if (destinationLatitude && destinationLongitude) {
-      const origin = {
-        latitude: userLatitude,
-        longitude: userLongitude,
-      };
-      const destination = {
-        latitude: destinationLatitude,
-        longitude: destinationLongitude,
-      };
-
-      fetchHereRoute(origin, destination).then((polyline) => {
-        if (polyline) {
-          const route = decodePolyline(polyline); // Decode the polyline into coordinates
-          setRouteCoordinates(route); // Set coordinates to be rendered
-        }
-      });
-    }
-  }, [userLatitude, userLongitude, destinationLatitude, destinationLongitude]);
 
   if (loading || !userLatitude || !userLongitude) {
     return (
@@ -208,14 +118,19 @@ const Map = () => {
             image={icons.pin}
           />
 
-          {/* Render the polyline for the route */}
-          {routeCoordinates.length > 0 && (
-            <Polyline
-              coordinates={routeCoordinates}
-              strokeColor="#0286ff"
-              strokeWidth={2}
-            />
-          )}
+          <MapViewDirections
+            origin={{
+              latitude: userLatitude,
+              longitude: userLongitude,
+            }}
+            destination={{
+              latitude: destinationLatitude,
+              longitude: destinationLongitude,
+            }}
+            apikey={process.env.EXPO_PUBLIC_HERE_MAPS_API_KEY}
+            strokeColor="#0286ff"
+            strokeWidth={2}
+          />
         </>
       )}
     </MapView>

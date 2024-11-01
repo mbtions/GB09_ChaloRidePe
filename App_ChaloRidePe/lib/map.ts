@@ -1,6 +1,6 @@
 import { Driver, MarkerData } from "@/types/type";
 
-const directionsAPI = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
+const apiKey = process.env.EXPO_PUBLIC_HERE_MAPS_API_KEY;
 
 export const generateMarkersFromData = ({
   data,
@@ -95,23 +95,51 @@ export const calculateDriverTimes = async ({
 
   try {
     const timesPromises = markers.map(async (marker) => {
-      const responseToUser = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${marker.latitude},${marker.longitude}&destination=${userLatitude},${userLongitude}&key=${directionsAPI}`
-      );
-      const dataToUser = await responseToUser.json();
-      const timeToUser = dataToUser.routes[0].legs[0].duration.value; // Time in seconds
+      // First leg: From the driver's location to the user
+      const urlToUser = `https://router.hereapi.com/v8/routes?transportMode=car&origin=${marker.latitude},${marker.longitude}&destination=${userLatitude},${userLongitude}&return=summary&apikey=${apiKey}`;
 
-      const responseToDestination = await fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&key=${directionsAPI}`
-      );
+      const responseToUser = await fetch(urlToUser);
+      // await fetch(
+      //   `https://maps.googleapis.com/maps/api/directions/json?origin=${marker.latitude},${marker.longitude}&destination=${userLatitude},${userLongitude}&key=${apiKey}`
+      // );
+
+      const dataToUser = await responseToUser.json();
+      // console.log("User data: \n" + dataToUser);
+
+      const timeToUser = dataToUser.routes[0].sections[0].summary.duration; // Time in seconds
+      // console.log("Time (to user):" + timeToUser);
+      // const timeToUser =
+      //   responseToUser.data.routes[0].sections[0].summary.duration; // Time in seconds
+
+      // Second leg: From the user to the destination
+      const urlToDestination = `https://router.hereapi.com/v8/routes?transportMode=car&origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&return=summary&apikey=${apiKey}`;
+
+      const responseToDestination = await fetch(urlToDestination);
+      // await fetch(
+      //   `https://maps.googleapis.com/maps/api/directions/json?origin=${userLatitude},${userLongitude}&destination=${destinationLatitude},${destinationLongitude}&key=${apiKey}`
+      // );
+
       const dataToDestination = await responseToDestination.json();
+      // console.log("Destination data: \n" + dataToDestination);
+
       const timeToDestination =
-        dataToDestination.routes[0].legs[0].duration.value; // Time in seconds
+        dataToDestination.routes[0].sections[0].summary.duration; // Time in seconds
+
+      // console.log("Time (to destination):" + timeToDestination);
+      // const timeToDestination =
+      //   responseToDestination.data.routes[0].sections[0].summary.duration; // Time in seconds
 
       const totalTime = (timeToUser + timeToDestination) / 60; // Total time in minutes
       const price = (totalTime * 0.5).toFixed(2); // Calculate price based on time
+      // console.log("done till here");
 
-      return { ...marker, time: totalTime, price };
+      try {
+        if (marker && totalTime && price) {
+          return { ...marker, time: totalTime, price };
+        }
+      } catch (error) {
+        console.log("Error: Values found null" + error);
+      }
     });
 
     return await Promise.all(timesPromises);

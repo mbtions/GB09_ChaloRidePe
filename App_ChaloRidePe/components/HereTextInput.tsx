@@ -144,6 +144,7 @@ const HereTextInput = ({
     try {
       const response = await fetch(url);
       const data = await response.json();
+      // console.log("Suggestions: ", data);  // error: "too many requests", description: "rate limit for this service has been reached"
       setSuggestions(data.items || []);
     } catch (error) {
       console.error("Error fetching Here Autocomplete suggestions", error);
@@ -234,13 +235,14 @@ const HereTextInput = ({
           )}
           keyExtractor={(item) => item.id}
           style={{
-            backgroundColor: textInputBackgroundColor || "white",
+            backgroundColor: "white",
             position: "absolute",
             top: 60,
             width: "100%",
             borderRadius: 10,
             shadowColor: "#d4d4d4",
             zIndex: 99,
+            elevation: 5,
           }}
         />
       )}
